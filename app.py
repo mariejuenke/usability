@@ -1,231 +1,159 @@
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-from datasets import load_dataset
-
-
-# -------------------------------------------------
-# Seiteneinstellungen
-# -------------------------------------------------
 
 st.set_page_config(
-    page_title="Unfallanalyse Dashboard",
+    page_title="Verkehrsunfälle in Norwegen",
     page_icon="🚗",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="collapsed",
 )
 
-
-# -------------------------------------------------
-# Titel
-# -------------------------------------------------
-
-st.title("🚗 Unfallanalyse Dashboard")
+# ---------------------------------------------------------------------------
+# Global CSS
+# ---------------------------------------------------------------------------
 st.markdown(
-    "Analyse von Verkehrs- und Unfallbedingungen basierend auf dem Datensatz."
+    """
+<style>
+/* Remove default top padding */
+.main .block-container {
+    padding-top: 1rem;
+    padding-bottom: 2rem;
+}
+
+/* Hide sidebar toggle button label */
+[data-testid="collapsedControl"] { display: none; }
+
+/* Card hover effect via Streamlit container */
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+    transition: box-shadow 0.2s ease;
+}
+
+/* Navigation buttons */
+.nav-btn-active > div > button {
+    background-color: #1e3a5f !important;
+    color: white !important;
+    border-color: #1e3a5f !important;
+}
+
+/* Metric styling */
+[data-testid="stMetricValue"] {
+    font-size: 1.8rem !important;
+    font-weight: 700 !important;
+    color: #1e3a5f;
+}
+[data-testid="stMetricLabel"] {
+    color: #6b7280 !important;
+    font-size: 0.85rem !important;
+}
+
+/* Image border-radius */
+[data-testid="stImage"] img {
+    border-radius: 8px;
+}
+
+/* Table / dataframe */
+[data-testid="stDataFrame"] {
+    border-radius: 8px;
+}
+</style>
+""",
+    unsafe_allow_html=True,
 )
 
+# ---------------------------------------------------------------------------
+# Session state
+# ---------------------------------------------------------------------------
+_DEFAULTS = {
+    "current_page": "dashboard",
+    "selected_id": None,
+    "selected_index": None,
+    "compare_id": None,
+    "compare_index": None,
+    "split_mode": False,
+    "list_page": 0,
+    "cmp_page": 0,
+}
+for k, v in _DEFAULTS.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
-# -------------------------------------------------
-# Datensatz laden
-# -------------------------------------------------
+# ---------------------------------------------------------------------------
+# Load data (cached)
+# ---------------------------------------------------------------------------
+from utils.data import load_df  # noqa: E402 – import after set_page_config
+import os as _os
 
-@st.cache_data
-def lade_daten():
-    dataset = load_dataset("thomasht86/accident-conditions")
-
-    # ersten verfügbaren Split laden
-    split_name = list(dataset.keys())[0]
-
-    df = dataset[split_name].to_pandas()
-
-    return df
-
-
-with st.spinner("Datensatz wird geladen..."):
-    df = lade_daten()
-
-
-# -------------------------------------------------
-# Informationen
-# -------------------------------------------------
-
-st.success(f"Datensatz erfolgreich geladen: {len(df)} Einträge")
-
-
-# -------------------------------------------------
-# Sidebar Filter
-# -------------------------------------------------
-
-st.sidebar.header("🔎 Filter")
-
-
-# Dynamische Filter für kategorische Spalten
-kategorische_spalten = df.select_dtypes(include=["object"]).columns.tolist()
-
-ausgewaehlte_spalte = st.sidebar.selectbox(
-    "Spalte auswählen",
-    kategorische_spalten
+_cache_ready = _os.path.exists(
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".df_cache.parquet")
 )
 
-if ausgewaehlte_spalte:
-
-    optionen = sorted(df[ausgewaehlte_spalte].astype(str).dropna().unique())
-
-    ausgewaehlte_werte = st.sidebar.multiselect(
-        "Werte auswählen",
-        options=optionen,
-        default=optionen
-    )
-
-    if ausgewaehlte_werte:
-        df = df[df[ausgewaehlte_spalte].astype(str).isin(ausgewaehlte_werte)]
-
-
-# -------------------------------------------------
-# Statistiken
-# -------------------------------------------------
-
-st.header("📊 Allgemeine Statistiken")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.metric("Anzahl Datensätze", len(df))
-
-with col2:
-    st.metric("Anzahl Spalten", len(df.columns))
-
-
-# -------------------------------------------------
-# Datentabelle
-# -------------------------------------------------
-
-st.header("📋 Datentabelle")
-
-st.dataframe(df, use_container_width=True)
-
-
-# -------------------------------------------------
-# Visualisierungen
-# -------------------------------------------------
-
-st.header("📈 Visualisierungen")
-
-
-# Nur Spalten verwenden die wirklich existieren
-categorical_cols = df.select_dtypes(include=["object"]).columns.tolist()
-numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
-
-
-# Histogramm für kategoriale Daten
-if len(categorical_cols) > 0:
-
-    spalte_kat = st.selectbox(
-        "Kategoriale Spalte für Diagramm auswählen",
-        categorical_cols
-    )
-
-    fig1 = px.histogram(
-        df,
-        x=spalte_kat,
-        title=f"Verteilung von {spalte_kat}"
-    )
-
-    st.plotly_chart(fig1, use_container_width=True)
-
-
-# Boxplot für numerische Daten
-if len(numeric_cols) > 0:
-
-    spalte_num = st.selectbox(
-        "Numerische Spalte auswählen",
-        numeric_cols
-    )
-
-    fig2 = px.box(
-        df,
-        y=spalte_num,
-        title=f"Verteilung von {spalte_num}"
-    )
-
-    st.plotly_chart(fig2, use_container_width=True)
-
-
-# -------------------------------------------------
-# Kreisdiagramm
-# -------------------------------------------------
-
-if len(categorical_cols) > 0:
-
-    pie_spalte = st.selectbox(
-        "Spalte für Kreisdiagramm auswählen",
-        categorical_cols,
-        key="pie"
-    )
-
-    # Werte in Strings umwandeln
-    sichere_spalte = df[pie_spalte].astype(str)
-
-    pie_data = (
-        sichere_spalte
-        .value_counts()
-        .reset_index()
-    )
-
-    pie_data.columns = [pie_spalte, "Anzahl"]
-
-    fig3 = px.pie(
-        pie_data,
-        names=pie_spalte,
-        values="Anzahl",
-        title=f"Kreisdiagramm für {pie_spalte}"
-    )
-
-    st.plotly_chart(fig3, use_container_width=True)
-
-
-# -------------------------------------------------
-# Korrelationsmatrix
-# -------------------------------------------------
-
-st.header("📉 Numerische Analyse")
-
-if len(numeric_cols) > 1:
-
-    correlation = df[numeric_cols].corr(numeric_only=True)
-
-    fig4 = px.imshow(
-        correlation,
-        text_auto=True,
-        aspect="auto",
-        title="Korrelationsmatrix"
-    )
-
-    st.plotly_chart(fig4, use_container_width=True)
-
+if _cache_ready:
+    with st.spinner("Datensatz wird geladen …"):
+        df = load_df()
 else:
-    st.info("Nicht genügend numerische Spalten vorhanden.")
+    st.info(
+        "**Erster Start** – Metadaten werden von HuggingFace heruntergeladen "
+        "(ca. 5–7 Minuten). Beim nächsten Start startet die App sofort."
+    )
+    with st.spinner(
+        "Lade Datensatz-Metadaten (6 Parquet-Shards parallel) …  "
+        "Dieser Vorgang findet nur beim ersten Start statt."
+    ):
+        df = load_df()
+
+# ---------------------------------------------------------------------------
+# Navigation bar
+# ---------------------------------------------------------------------------
+nav_c0, nav_c1, nav_c2, nav_c3, nav_c4 = st.columns([5, 1.2, 1.2, 1.2, 0.5])
+
+with nav_c0:
+    st.markdown(
+        "<h2 style='margin:0; padding:4px 0; color:#1e3a5f;'>🚗 Verkehrsunfälle in Norwegen</h2>",
+        unsafe_allow_html=True,
+    )
+
+page = st.session_state.current_page
+
+def _nav(label: str, target: str, col_obj, key: str):
+    is_active = page == target
+    with col_obj:
+        btn_type = "primary" if is_active else "secondary"
+        if st.button(label, key=key, use_container_width=True, type=btn_type):
+            st.session_state.current_page = target
+            if target != "detail":
+                st.session_state.split_mode = False
+            st.rerun()
 
 
-# -------------------------------------------------
-# Datensatzinformationen
-# -------------------------------------------------
+_nav("Dashboard", "dashboard", nav_c1, "nav_dash")
+_nav("Unfallliste", "liste", nav_c2, "nav_liste")
 
-with st.expander("🔍 Informationen über den Datensatz"):
-
-    st.write("Anzahl Zeilen:", df.shape[0])
-    st.write("Anzahl Spalten:", df.shape[1])
-
-    st.write("Spaltennamen:")
-    st.write(df.columns.tolist())
-
-    st.write("Datentypen:")
-    st.write(df.dtypes)
-
-
-# -------------------------------------------------
-# Footer
-# -------------------------------------------------
+detail_available = st.session_state.selected_index is not None
+with nav_c3:
+    if detail_available:
+        btn_type = "primary" if page == "detail" else "secondary"
+        if st.button("Details", key="nav_detail", use_container_width=True, type=btn_type):
+            st.session_state.current_page = "detail"
+            st.rerun()
+    else:
+        st.button("Details", key="nav_detail_dis", use_container_width=True, disabled=True)
 
 st.markdown("---")
-st.markdown("Erstellt mit ❤️ und Streamlit")
+
+# ---------------------------------------------------------------------------
+# Page routing
+# ---------------------------------------------------------------------------
+import pages.dashboard as _dashboard  # noqa: E402
+import pages.liste as _liste          # noqa: E402
+import pages.detail as _detail        # noqa: E402
+
+if page == "dashboard":
+    _dashboard.render(df)
+elif page == "liste":
+    _liste.render(df)
+elif page == "detail":
+    if detail_available:
+        _detail.render(df)
+    else:
+        st.session_state.current_page = "liste"
+        st.rerun()
