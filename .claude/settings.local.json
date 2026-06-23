@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Read"
+      "Read",
+      "Bash(python3 -c \"\nfrom utils.data import load_df\ndf \u003d load_df()\nprint(\u0027Columns:\u0027, list(df.columns))\nprint(\u0027Shape:\u0027, df.shape)\n\" 2\u003e/dev/null | head -20)",
+      "Bash"
     ]
   }
 }
