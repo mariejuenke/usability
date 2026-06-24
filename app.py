@@ -6,6 +6,12 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# Sidebar-Nav ausblenden (von st.navigation erzeugt)
+st.markdown(
+    "<style>[data-testid='stSidebarNav']{display:none!important;}</style>",
+    unsafe_allow_html=True,
+)
+
 # ---------------------------------------------------------------------------
 # Tabler Icons (webfont via CDN)
 # ---------------------------------------------------------------------------
@@ -133,7 +139,6 @@ header[data-testid="stHeader"] { display: none !important; }
 # Session state
 # ---------------------------------------------------------------------------
 _DEFAULTS = {
-    "current_page": "dashboard",
     "selected_id": None,
     "selected_index": None,
     "compare_id": None,
@@ -171,6 +176,59 @@ else:
     ):
         df = load_df()
 
+# DataFrame in Session State für Page-Callables verfügbar machen
+st.session_state["df"] = df
+
+# ---------------------------------------------------------------------------
+# Pages definieren
+# ---------------------------------------------------------------------------
+import pages.dashboard as _dashboard  # noqa: E402
+import pages.liste as _liste          # noqa: E402
+import pages.detail as _detail        # noqa: E402
+
+
+def _page_dashboard():
+    _df = st.session_state["df"]
+    _content = st.empty()
+    with _content.container():
+        _dashboard.render_skeleton()
+    with _content.container():
+        _dashboard.render(_df)
+
+
+def _page_liste():
+    _df = st.session_state["df"]
+    _content = st.empty()
+    with _content.container():
+        _liste.render_skeleton()
+    with _content.container():
+        _liste.render(_df)
+
+
+def _page_detail():
+    if st.session_state.get("selected_index") is None:
+        st.switch_page(pg_liste)
+        return
+    _df = st.session_state["df"]
+    _content = st.empty()
+    with _content.container():
+        _detail.render_skeleton()
+    with _content.container():
+        _detail.render(_df)
+
+
+pg_dashboard = st.Page(_page_dashboard, title="Dashboard", default=True, url_path="dashboard")
+pg_liste     = st.Page(_page_liste,     title="Unfallliste",  url_path="liste")
+pg_detail    = st.Page(_page_detail,    title="Detail",       url_path="detail")
+
+# Page-Objekte in Session State, damit Unterseiten st.switch_page() nutzen können
+st.session_state["_pg_dashboard"] = pg_dashboard
+st.session_state["_pg_liste"]     = pg_liste
+st.session_state["_pg_detail"]    = pg_detail
+
+# Navigation registrieren (position="hidden" → keine Sidebar-Nav)
+pg = st.navigation([pg_dashboard, pg_liste, pg_detail], position="hidden")
+
 # ---------------------------------------------------------------------------
 # Navigation bar
 # ---------------------------------------------------------------------------
@@ -182,20 +240,18 @@ with nav_c0:
         unsafe_allow_html=True,
     )
 
-page = st.session_state.current_page
 
-def _nav(label: str, target: str, col_obj, key: str):
-    is_active = page == target
+def _nav(label: str, target_page, col_obj, key: str):
+    is_active = pg == target_page
     with col_obj:
         btn_type = "primary" if is_active else "secondary"
         if st.button(label, key=key, use_container_width=True, type=btn_type):
-            st.session_state.current_page = target
             st.session_state.split_mode = False
-            st.rerun()
+            st.switch_page(target_page)
 
 
-_nav("Dashboard", "dashboard", nav_c1, "nav_dash")
-_nav("Unfallliste", "liste", nav_c2, "nav_liste")
+_nav("Dashboard",   pg_dashboard, nav_c1, "nav_dash")
+_nav("Unfallliste", pg_liste,     nav_c2, "nav_liste")
 
 # ---------------------------------------------------------------------------
 # JS: enforce fixed positioning on the nav bar after each Streamlit re-render
@@ -233,7 +289,6 @@ _components.html(
     function getNavRow() {
         var t = pd.getElementById('site-nav-title');
         if (!t) return null;
-        // Collect every stVerticalBlock ancestor, outermost = last in list
         var outer = null;
         var el = t;
         while (el) {
@@ -241,7 +296,6 @@ _components.html(
             el = el.parentElement;
         }
         if (!outer) return null;
-        // Return the direct child of that outer block that contains the title
         for (var i = 0; i < outer.children.length; i++) {
             if (outer.children[i].contains(t)) return outer.children[i];
         }
@@ -251,7 +305,6 @@ _components.html(
     function fix() {
         var row = getNavRow();
         if (!row) return;
-        // Clear transforms on every ancestor so position:fixed uses the viewport
         var cur = row.parentElement;
         while (cur && cur !== pd.body) {
             cur.style.setProperty('transform','none','important');
@@ -260,7 +313,6 @@ _components.html(
             cur.style.setProperty('contain','none','important');
             cur = cur.parentElement;
         }
-        // Apply position:fixed inline (overrides any class-based style)
         row.style.setProperty('position','fixed','important');
         row.style.setProperty('top','0','important');
         row.style.setProperty('left','0','important');
@@ -281,40 +333,7 @@ _components.html(
     height=0,
 )
 
-detail_available = st.session_state.selected_index is not None
-
 # ---------------------------------------------------------------------------
-# Page routing  (skeleton on first render after navigation)
+# Aktuelle Seite rendern
 # ---------------------------------------------------------------------------
-import pages.dashboard as _dashboard  # noqa: E402
-import pages.liste as _liste          # noqa: E402
-import pages.detail as _detail        # noqa: E402
-
-_prev = st.session_state.get("_prev_page", page)
-_just_navigated = _prev != page
-st.session_state["_prev_page"] = page
-
-_content = st.empty()
-
-if page == "dashboard":
-    if _just_navigated:
-        with _content.container():
-            _dashboard.render_skeleton()
-    with _content.container():
-        _dashboard.render(df)
-elif page == "liste":
-    if _just_navigated:
-        with _content.container():
-            _liste.render_skeleton()
-    with _content.container():
-        _liste.render(df)
-elif page == "detail":
-    if not detail_available:
-        st.session_state.current_page = "liste"
-        st.rerun()
-    else:
-        if _just_navigated:
-            with _content.container():
-                _detail.render_skeleton()
-        with _content.container():
-            _detail.render(df)
+pg.run()

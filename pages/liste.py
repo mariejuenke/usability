@@ -224,10 +224,9 @@ def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None):
             st.caption("Keine Zusatzinfos")
 
         if st.button("Details ansehen", key=f"card_btn_{df_idx}", use_container_width=True):
-            st.session_state.current_page = "detail"
             st.session_state.selected_id = accident_id
             st.session_state.selected_index = df_idx
             st.session_state.split_mode = False
             st.session_state.compare_id = None
             st.session_state.compare_index = None
-            st.rerun()
+            st.switch_page(st.session_state["_pg_detail"])
