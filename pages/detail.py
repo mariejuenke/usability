@@ -432,12 +432,13 @@ def _render_suggestions_tab(df: pd.DataFrame):
 
 
 def _render_all_tab(df: pd.DataFrame):
-    id_c      = col(df, "id")
-    date_c    = col(df, "date")
-    weather_c = col(df, "weather")
-    light_c   = col(df, "light")
-    speed_c   = col(df, "speed")
-    units_c   = col(df, "num_units")
+    id_c        = col(df, "id")
+    date_c      = col(df, "date")
+    weather_c   = col(df, "weather")
+    light_c     = col(df, "light")
+    speed_c     = col(df, "speed")
+    units_c     = col(df, "num_units")
+    severity_c  = col(df, "severity")
 
     with st.container(border=True):
         f1, f2 = st.columns(2, gap="small")
@@ -460,6 +461,13 @@ def _render_all_tab(df: pd.DataFrame):
             if speed_c:
                 opts = sorted(df[speed_c].dropna().unique().astype(int))
                 sel_speed = st.multiselect("Tempolimit", opts, key="cmp_speed", placeholder="Alle")
+
+        f5, f6 = st.columns(2, gap="small")
+        with f5:
+            sel_severity = []
+            if severity_c:
+                opts = sorted(df[severity_c].dropna().astype(str).unique())
+                sel_severity = st.multiselect("Unfalltyp", opts, key="cmp_severity", placeholder="Alle")
 
         d1, d2, d3 = st.columns([2, 2, 3], gap="small")
         with d1:
@@ -495,6 +503,8 @@ def _render_all_tab(df: pd.DataFrame):
         mask &= df[light_c].astype(str).isin(sel_light)
     if sel_speed and speed_c:
         mask &= df[speed_c].isin(sel_speed)
+    if sel_severity and severity_c:
+        mask &= df[severity_c].astype(str).isin(sel_severity)
     if date_from and date_to and date_c:
         mask &= df[date_c].dt.date.between(date_from, date_to)
     if units_range and units_c:
