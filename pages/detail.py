@@ -197,7 +197,7 @@ def _render_key_badges(df: pd.DataFrame, row: pd.Series):
 
 def _render_important_fields(df: pd.DataFrame, row: pd.Series):
     """Compact view: only the most relevant fields."""
-    priority = ["id", "date", "time", "weather", "light", "road", "speed", "distance", "region"]
+    priority = ["id", "date", "time", "severity", "weather", "light", "road", "speed", "distance", "region"]
     shown = []
     for sem in priority:
         c = col(df, sem)
