@@ -229,4 +229,5 @@ def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None):
             st.session_state.split_mode = False
             st.session_state.compare_id = None
             st.session_state.compare_index = None
-            st.switch_page(st.session_state["_pg_detail"])
+            st.session_state.show_detail = True
+            st.rerun()

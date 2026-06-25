@@ -51,7 +51,8 @@ def render(df: pd.DataFrame):
         with btn_col1:
             if st.button("← Zur Liste", use_container_width=True):
                 st.session_state.split_mode = False
-                st.switch_page(st.session_state["_pg_liste"])
+                st.session_state.show_detail = False
+                st.rerun()
         with btn_col2:
             if split_mode:
                 if st.button("Vergleich beenden", use_container_width=True, type="primary"):
