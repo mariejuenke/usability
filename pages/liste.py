@@ -86,12 +86,13 @@ def render(df: pd.DataFrame):  # noqa: PLR0912
 # ---------------------------------------------------------------------------
 
 def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
-    id_c      = col(df, "id")
-    date_c    = col(df, "date")
-    weather_c = col(df, "weather")
-    light_c   = col(df, "light")
-    speed_c   = col(df, "speed")
-    units_c   = col(df, "num_units")
+    id_c        = col(df, "id")
+    date_c      = col(df, "date")
+    weather_c   = col(df, "weather")
+    light_c     = col(df, "light")
+    speed_c     = col(df, "speed")
+    units_c     = col(df, "num_units")
+    severity_c  = col(df, "severity")
 
     with st.container(border=True):
         f1, f2, f3, f4 = st.columns(4, gap="medium")
@@ -122,8 +123,8 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
                     "Tempolimit", opts, key="list_speed", placeholder="Alle"
                 )
 
-        # Second row: date range + beteiligt slider
-        row2_cols = st.columns([2, 2, 3], gap="medium")
+        # Second row: date range + Unfalltyp + beteiligt slider
+        row2_cols = st.columns([2, 2, 2, 3], gap="medium")
         with row2_cols[0]:
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
                 d_min = df[date_c].min().date()
@@ -139,6 +140,13 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
             else:
                 date_to = None
         with row2_cols[2]:
+            severity_vals = []
+            if severity_c:
+                opts = sorted(df[severity_c].dropna().astype(str).unique())
+                severity_vals = st.multiselect(
+                    "Unfalltyp", opts, key="list_severity", placeholder="Alle"
+                )
+        with row2_cols[3]:
             units_range = None
             if units_c:
                 u_min = int(df[units_c].dropna().min())
@@ -161,6 +169,8 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
         mask &= df[light_c].astype(str).isin(light_vals)
     if speed_vals and speed_c:
         mask &= df[speed_c].isin(speed_vals)
+    if severity_vals and severity_c:
+        mask &= df[severity_c].astype(str).isin(severity_vals)
     if date_from and date_to and date_c:
         mask &= df[date_c].dt.date.between(date_from, date_to)
     if units_range and units_c:
