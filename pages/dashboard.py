@@ -271,7 +271,7 @@ def _monthly_chart(df: pd.DataFrame, chart_height: int = 295):
                 value=d_max,
                 min_value=d_min,
                 max_value=d_max,
-                format="DD/MM/YYYY",
+                format="DD.MM.YYYY",
                 key="dash_start_date",
             )
 

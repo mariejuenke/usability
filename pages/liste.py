@@ -227,11 +227,13 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
                 d_min = df[date_c].min().date()
                 d_max = df[date_c].max().date()
                 date_from = st.date_input("Von", value=d_min, min_value=d_min,
-                                          max_value=d_max, key=f"list_date_from_{v}")
+                                          max_value=d_max, format="DD.MM.YYYY",
+                                          key=f"list_date_from_{v}")
         with row2_cols[1]:
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
                 date_to = st.date_input("Bis", value=d_max, min_value=d_min,
-                                        max_value=d_max, key=f"list_date_to_{v}")
+                                        max_value=d_max, format="DD.MM.YYYY",
+                                        key=f"list_date_to_{v}")
         with row2_cols[2]:
             severity_vals = []
             if severity_c:

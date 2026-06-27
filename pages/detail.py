@@ -493,12 +493,14 @@ def _render_all_tab(df: pd.DataFrame):
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
                 d_min = df[date_c].min().date()
                 d_max = df[date_c].max().date()
-                date_from = st.date_input("Von", value=d_min, min_value=d_min, max_value=d_max, key="cmp_date_from")
+                date_from = st.date_input("Von", value=d_min, min_value=d_min, max_value=d_max,
+                                          format="DD.MM.YYYY", key="cmp_date_from")
             else:
                 date_from = None
         with d2:
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
-                date_to = st.date_input("Bis", value=d_max, min_value=d_min, max_value=d_max, key="cmp_date_to")
+                date_to = st.date_input("Bis", value=d_max, min_value=d_min, max_value=d_max,
+                                        format="DD.MM.YYYY", key="cmp_date_to")
             else:
                 date_to = None
         with d3:
