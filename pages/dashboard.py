@@ -36,12 +36,6 @@ def render_skeleton():
 
 def render(df: pd.DataFrame):
     date_c = col(df, "date")
-    if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
-        y_min = int(df[date_c].dt.year.min())
-        y_max = int(df[date_c].dt.year.max())
-        st.caption(f"{len(df):,} Unfälle · {y_min}–{y_max}")
-    else:
-        st.caption(f"{len(df):,} Unfälle")
     st.markdown("")
 
     _kpi_row(df)
