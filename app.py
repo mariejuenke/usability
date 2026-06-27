@@ -80,6 +80,13 @@ header[data-testid="stHeader"] { display: none !important; }
 [data-testid="stImage"] img { border-radius: 4px !important; }
 [data-testid="stDataFrame"] { border-radius: 4px; }
 
+/* ── Karten-Bilder: einheitliche Höhe, Ausschnitt statt Stauchung ── */
+[data-testid="stVerticalBlockBorderWrapper"] [data-testid="stImage"] img {
+    height: 180px !important;
+    width: 100% !important;
+    object-fit: cover !important;
+}
+
 /* ── Tabs linksbündig ── */
 [data-baseweb="tab-list"] {
     justify-content: flex-start;

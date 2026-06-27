@@ -34,7 +34,7 @@ def render(df: pd.DataFrame):
     if idx is None or idx not in df.index:
         st.error("Kein Unfall ausgewählt.")
         if st.button("← Zur Liste"):
-            st.switch_page("_page_main.py")
+            st.switch_page("_page_liste.py")
         return
 
     split_mode = st.session_state.get("split_mode", False)
@@ -53,7 +53,7 @@ def render(df: pd.DataFrame):
         with btn_col1:
             if st.button("← Zur Liste", use_container_width=True):
                 st.session_state.split_mode = False
-                st.switch_page("_page_main.py")
+                st.switch_page("_page_liste.py")
         with btn_col2:
             if split_mode:
                 if st.button("Vergleich beenden", use_container_width=True, type="primary"):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -66,14 +68,29 @@ def render(df: pd.DataFrame):  # noqa: PLR0912
     page_rows = df_filtered.iloc[start:end]
 
     # -----------------------------------------------------------------------
-    # Card grid (5 columns)
+    # Card grid (5 columns) — skeleton shows while images are loading
     # -----------------------------------------------------------------------
-    for row_start in range(0, len(page_rows), _COLS):
-        row_slice = page_rows.iloc[row_start: row_start + _COLS]
-        grid_cols = st.columns(_COLS, gap="medium")
-        for gc, (df_idx, row) in zip(grid_cols, row_slice.iterrows()):
-            with gc:
-                _accident_card(row, df_idx, df)
+    cards_slot = st.empty()
+    skeleton_cells = "".join(
+        f"<div class='sk' style='height:280px;border-radius:4px;'></div>"
+        for _ in range(len(page_rows))
+    )
+    with cards_slot.container():
+        st.markdown(
+            f"<div style='display:grid;grid-template-columns:repeat({_COLS},1fr);gap:16px;'>"
+            f"{skeleton_cells}</div>",
+            unsafe_allow_html=True,
+        )
+
+    img_cache = {df_idx: get_image(df_idx) for df_idx, _ in page_rows.iterrows()}
+
+    with cards_slot.container():
+        for row_start in range(0, len(page_rows), _COLS):
+            row_slice = page_rows.iloc[row_start: row_start + _COLS]
+            grid_cols = st.columns(_COLS, gap="medium")
+            for gc, (df_idx, row) in zip(grid_cols, row_slice.iterrows()):
+                with gc:
+                    _accident_card(row, df_idx, df, img_cache.get(df_idx))
 
     # -----------------------------------------------------------------------
     # Pagination controls
@@ -263,7 +280,7 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
 # Single accident card
 # ---------------------------------------------------------------------------
 
-def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None):
+def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None, img_bytes: bytes | None = None):
     # Resolve column names from the full df if provided, else from row
     ref = df if df is not None else row.to_frame().T
     id_c = col(ref, "id")
@@ -279,17 +296,18 @@ def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None):
         date_val = date_val.strftime("%d.%m.%Y")
 
     with st.container(border=True):
-        img_slot = st.empty()
-        img_slot.markdown(
-            "<div class='sk' style='height:160px;border-radius:8px;'></div>",
-            unsafe_allow_html=True,
-        )
-        img_bytes = get_image(df_idx)
         if img_bytes is not None:
-            img_slot.image(img_bytes, use_container_width=True)
+            b64 = base64.b64encode(img_bytes).decode()
+            st.markdown(
+                f'<div style="height:180px;overflow:hidden;border-radius:4px;">'
+                f'<img src="data:image/jpeg;base64,{b64}" '
+                f'style="width:100%;height:100%;object-fit:cover;" alt="Unfallbild"/>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
         else:
-            img_slot.markdown(
-                "<div style='height:160px; background:#e5e7eb; border-radius:8px; "
+            st.markdown(
+                "<div style='height:180px; background:#e5e7eb; border-radius:8px; "
                 "display:flex; align-items:center; justify-content:center; color:#9ca3af;'>"
                 "Kein Bild</div>",
                 unsafe_allow_html=True,
