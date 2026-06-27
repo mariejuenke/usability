@@ -80,9 +80,19 @@ header[data-testid="stHeader"] { display: none !important; }
 [data-testid="stImage"] img { border-radius: 4px !important; }
 [data-testid="stDataFrame"] { border-radius: 4px; }
 
-/* ── Tabs rechtsbündig ── */
+/* ── Tabs linksbündig ── */
 [data-baseweb="tab-list"] {
-    justify-content: flex-end;
+    justify-content: flex-start;
+}
+
+/* ── Keyboard focus ── */
+.stButton > button:focus-visible {
+    outline: 2px solid #4589C8 !important;
+    outline-offset: 2px !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:focus-within {
+    outline: 2px solid #4589C8 !important;
+    box-shadow: 0 0 0 4px rgba(69,137,200,0.25) !important;
 }
 </style>
 """,
@@ -134,36 +144,14 @@ else:
 st.session_state["df"] = df
 
 # ---------------------------------------------------------------------------
-# Page modules
+# Navigation
 # ---------------------------------------------------------------------------
-import pages.dashboard as _dashboard  # noqa: E402
-import pages.liste as _liste          # noqa: E402
-import pages.detail as _detail        # noqa: E402
-
-# ---------------------------------------------------------------------------
-# Routing
-# ---------------------------------------------------------------------------
-st.markdown("## Verkehrsunfälle in Trondheim")
-
-if st.session_state.show_detail:
-    _detail_content = st.empty()
-    with _detail_content.container():
-        _detail.render_skeleton()
-    with _detail_content.container():
-        _detail.render(df)
-else:
-    tab_dash, tab_liste = st.tabs(["Dashboard", "Unfallliste"])
-
-    with tab_dash:
-        _content_dash = st.empty()
-        with _content_dash.container():
-            _dashboard.render_skeleton()
-        with _content_dash.container():
-            _dashboard.render(df)
-
-    with tab_liste:
-        _content_liste = st.empty()
-        with _content_liste.container():
-            _liste.render_skeleton()
-        with _content_liste.container():
-            _liste.render(df)
+pg = st.navigation(
+    [
+        st.Page("_page_main.py",   title="Dashboard",    default=True),
+        st.Page("_page_liste.py",  title="Unfallliste",  url_path="list"),
+        st.Page("_page_detail.py", title="Unfalldetail", url_path="details"),
+    ],
+    position="hidden",
+)
+pg.run()

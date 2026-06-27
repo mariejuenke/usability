@@ -20,7 +20,6 @@ _SK_ROW = "<div style='display:grid; grid-template-columns:{cols}; gap:16px; mar
 
 
 def render_skeleton():
-    st.markdown("### Daten nach thomasht86/accident-conditions")
     st.markdown("")
     html = (
         # KPI row
@@ -36,7 +35,13 @@ def render_skeleton():
 
 
 def render(df: pd.DataFrame):
-    st.markdown("### Daten nach thomasht86/accident-conditions")
+    date_c = col(df, "date")
+    if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
+        y_min = int(df[date_c].dt.year.min())
+        y_max = int(df[date_c].dt.year.max())
+        st.caption(f"{len(df):,} Unfälle · {y_min}–{y_max}")
+    else:
+        st.caption(f"{len(df):,} Unfälle")
     st.markdown("")
 
     _kpi_row(df)
@@ -97,7 +102,7 @@ def _section_header(title: str, description: str):
         f"border-left: 3px solid #4589C8;'>"
         f"<div style='font-size:0.78rem; font-weight:600; text-transform:uppercase;"
         f"letter-spacing:0.06em; color:#9ca3af; margin-bottom:3px;'>{title}</div>"
-        f"<div style='font-size:0.83rem; color:#6b7280;'>{description}</div>"
+        f"<div style='font-size:0.83rem; color:#9ca3af;'>{description}</div>"
         f"</div>",
         unsafe_allow_html=True,
     )
@@ -131,8 +136,8 @@ def _kpi_row(df: pd.DataFrame):
                         )
             st.markdown(
                 f"<div style='font-size:0.85rem;color:#9ca3af;margin-bottom:2px;'>Unfälle gesamt</div>"
-                f"<div style='font-size:1.8rem;font-weight:700;line-height:1.2;'>"
-                f"{len(df):,}{badge_html}</div>",
+                f"<div style='font-size:1.8rem;font-weight:700;line-height:1.2;'>{len(df):,}</div>"
+                f"<div style='margin-top:4px;'>{badge_html}</div>",
                 unsafe_allow_html=True,
             )
 
@@ -160,7 +165,7 @@ def _kpi_row(df: pd.DataFrame):
             top = df[weather_c].mode()
             val = str(top.iloc[0]) if len(top) > 0 else "–"
             with st.container(border=True):
-                st.metric("Häuf. Wetter", val[:20])
+                st.metric("Häuf. Wetter", val)
         else:
             speed_c = col(df, "speed")
             if speed_c:

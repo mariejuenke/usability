@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from utils.data import col, get_image
 
 ITEMS_PER_PAGE = 25
 _COLS = 5
+
+_FILTER_V_KEY = "list_filter_v"
+
+
+def _reset_filters():
+    st.session_state[_FILTER_V_KEY] = st.session_state.get(_FILTER_V_KEY, 0) + 1
+    st.session_state["list_page"] = 0
 
 
 def render_skeleton():
@@ -33,6 +41,13 @@ def render(df: pd.DataFrame):  # noqa: PLR0912
     df_filtered = _apply_filters(df)
     st.markdown(f"**{len(df_filtered):,} Einträge** nach Filterung")
     st.markdown("")
+
+    if len(df_filtered) == 0:
+        st.info(
+            "Keine Einträge gefunden. Passe die Filter an oder "
+            "klicke **Filter zurücksetzen**, um alle Unfälle anzuzeigen."
+        )
+        return
 
     # -----------------------------------------------------------------------
     # Pagination
@@ -80,6 +95,61 @@ def render(df: pd.DataFrame):  # noqa: PLR0912
             st.session_state.list_page += 1
             st.rerun()
 
+    # Tastaturzugänglichkeit: Tabs + Buttons per Tab erreichbar, Pfeil-Navigation zwischen Karten
+    components.html(
+        """
+        <script>
+        (function () {
+            // Diesen Iframe selbst aus der Tab-Reihenfolge nehmen
+            try { if (window.frameElement) window.frameElement.tabIndex = -1; } catch(_) {}
+
+            var p;
+            try { p = window.parent; p.document.body; } catch(_) { return; }
+
+            // tabindex="-1" auf Streamlit-Tabs und Buttons reparieren
+            var _timer;
+            function applyTabFix() {
+                clearTimeout(_timer);
+                _timer = p.setTimeout(function () {
+                    p.document.querySelectorAll('[data-baseweb="tab"]').forEach(function (t) {
+                        t.setAttribute('tabindex', '0');
+                    });
+                    p.document.querySelectorAll('button[tabindex="-1"]').forEach(function (b) {
+                        b.setAttribute('tabindex', '0');
+                    });
+                }, 80);
+            }
+
+            if (!p._cardNavAttached) {
+                p._cardNavAttached = true;
+
+                // Erneut anwenden wenn React den DOM ändert (ohne Attribut-Beobachtung → kein Loop)
+                new p.MutationObserver(applyTabFix).observe(p.document.body, {
+                    subtree: true, childList: true
+                });
+
+                // Pfeil-Taste-Navigation zwischen Karten
+                p.document.addEventListener('keydown', function (e) {
+                    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft' &&
+                        e.key !== 'ArrowDown'  && e.key !== 'ArrowUp') return;
+                    var btns = Array.from(p.document.querySelectorAll('button'))
+                        .filter(function (b) { return b.textContent.trim() === 'Details ansehen'; });
+                    var idx = btns.indexOf(p.document.activeElement);
+                    if (idx === -1) return;
+                    e.preventDefault();
+                    var next = (e.key === 'ArrowRight' || e.key === 'ArrowDown')
+                        ? btns[idx + 1] : btns[idx - 1];
+                    if (next) next.focus();
+                });
+            }
+
+            applyTabFix();
+        })();
+        </script>
+        """,
+        height=0,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Filters
@@ -94,57 +164,63 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
     units_c     = col(df, "num_units")
     severity_c  = col(df, "severity")
 
-    with st.container(border=True):
-        f1, f2, f3, f4 = st.columns(4, gap="medium")
+    # Counter-based key suffix: incrementing forces all widgets to re-create with defaults
+    v = st.session_state.get(_FILTER_V_KEY, 0)
 
+    date_from = date_to = None
+
+    with st.container(border=True):
+        reset_col, _ = st.columns([1, 5])
+        with reset_col:
+            st.button(
+                "Filter zurücksetzen", key="list_reset",
+                on_click=_reset_filters, use_container_width=True,
+            )
+
+        f1, f2, f3, f4 = st.columns(4, gap="medium")
         with f1:
             search_id = st.text_input(
-                "ID suchen", placeholder="z. B. 255", key="list_search_id"
+                "ID suchen", placeholder="z. B. 255", key=f"list_search_id_{v}"
             )
         with f2:
             weather_vals = []
             if weather_c:
                 opts = sorted(df[weather_c].dropna().astype(str).unique())
                 weather_vals = st.multiselect(
-                    "Wetter", opts, key="list_weather", placeholder="Alle"
+                    "Wetter", opts, key=f"list_weather_{v}", placeholder="Alle"
                 )
         with f3:
             light_vals = []
             if light_c:
                 opts = sorted(df[light_c].dropna().astype(str).unique())
                 light_vals = st.multiselect(
-                    "Lichtverhältnis", opts, key="list_light", placeholder="Alle"
+                    "Lichtverhältnis", opts, key=f"list_light_{v}", placeholder="Alle"
                 )
         with f4:
             speed_vals = []
             if speed_c:
                 opts = sorted(df[speed_c].dropna().unique().astype(int))
                 speed_vals = st.multiselect(
-                    "Tempolimit", opts, key="list_speed", placeholder="Alle"
+                    "Tempolimit", opts, key=f"list_speed_{v}", placeholder="Alle"
                 )
 
-        # Second row: date range + Unfalltyp + beteiligt slider
         row2_cols = st.columns([2, 2, 2, 3], gap="medium")
         with row2_cols[0]:
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
                 d_min = df[date_c].min().date()
                 d_max = df[date_c].max().date()
                 date_from = st.date_input("Von", value=d_min, min_value=d_min,
-                                          max_value=d_max, key="list_date_from")
-            else:
-                date_from = None
+                                          max_value=d_max, key=f"list_date_from_{v}")
         with row2_cols[1]:
             if date_c and pd.api.types.is_datetime64_any_dtype(df[date_c]):
                 date_to = st.date_input("Bis", value=d_max, min_value=d_min,
-                                        max_value=d_max, key="list_date_to")
-            else:
-                date_to = None
+                                        max_value=d_max, key=f"list_date_to_{v}")
         with row2_cols[2]:
             severity_vals = []
             if severity_c:
                 opts = sorted(df[severity_c].dropna().astype(str).unique())
                 severity_vals = st.multiselect(
-                    "Unfalltyp", opts, key="list_severity", placeholder="Alle"
+                    "Unfalltyp", opts, key=f"list_severity_{v}", placeholder="Alle"
                 )
         with row2_cols[3]:
             units_range = None
@@ -155,8 +231,12 @@ def _apply_filters(df: pd.DataFrame) -> pd.DataFrame:
                     units_range = st.slider(
                         "Anzahl beteiligter Fahrzeuge",
                         min_value=u_min, max_value=u_max,
-                        value=(u_min, u_max), key="list_units",
+                        value=(u_min, u_max), key=f"list_units_{v}",
                     )
+
+    if date_from and date_to and date_from > date_to:
+        st.warning("Das Startdatum liegt nach dem Enddatum – bitte Datumsbereich korrigieren.")
+        return df.iloc[0:0]
 
     # Apply filters
     mask = pd.Series([True] * len(df), index=df.index)
@@ -239,5 +319,4 @@ def _accident_card(row: pd.Series, df_idx: int, df: pd.DataFrame = None):
             st.session_state.split_mode = False
             st.session_state.compare_id = None
             st.session_state.compare_index = None
-            st.session_state.show_detail = True
-            st.rerun()
+            st.switch_page("_page_detail.py")

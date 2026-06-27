@@ -3,7 +3,7 @@ from __future__ import annotations
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils.data import col, get_image, LABELS_DE
+from utils.data import col, get_image, LABELS_DE, COL_LABELS
 
 COMPARE_PER_PAGE = 6
 
@@ -33,6 +33,8 @@ def render(df: pd.DataFrame):
     idx = st.session_state.get("selected_index")
     if idx is None or idx not in df.index:
         st.error("Kein Unfall ausgewählt.")
+        if st.button("← Zur Liste"):
+            st.switch_page("_page_main.py")
         return
 
     split_mode = st.session_state.get("split_mode", False)
@@ -51,8 +53,7 @@ def render(df: pd.DataFrame):
         with btn_col1:
             if st.button("← Zur Liste", use_container_width=True):
                 st.session_state.split_mode = False
-                st.session_state.show_detail = False
-                st.rerun()
+                st.switch_page("_page_main.py")
         with btn_col2:
             if split_mode:
                 if st.button("Vergleich beenden", use_container_width=True, type="primary"):
@@ -159,7 +160,9 @@ def _render_participants_chart(df: pd.DataFrame, row: pd.Series):
             yaxis=dict(rangemode="tozero"),
             showlegend=False,
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=f"chart_participants_{row.name}")
+        parts_text = ", ".join(f"{d['Anzahl']} {d['Typ']}" for d in data if d["Anzahl"] > 0)
+        st.caption(f"Säulendiagramm – beteiligte Fahrzeuge: {parts_text}.")
 
 
 def _render_key_badges(df: pd.DataFrame, row: pd.Series):
@@ -269,7 +272,7 @@ def _render_all_fields(df: pd.DataFrame, row: pd.Series):
                     val = str(val)
                 cl, cv = st.columns([1, 2])
                 with cl:
-                    st.caption(c)
+                    st.caption(COL_LABELS.get(c, c.replace("_", " ").title()))
                 with cv:
                     st.markdown(f"**{val}**")
 
@@ -323,6 +326,15 @@ def _render_mini_charts(df: pd.DataFrame, row: pd.Series, compact: bool = False)
                         yaxis=dict(autorange="reversed"),
                     )
                     st.plotly_chart(fig, use_container_width=True, key=f"chart_weather_{str(row.name)}")
+                    total_w = int(counts["Anzahl"].sum())
+                    own_row = counts[counts["Kategorie"] == selected_val]
+                    own_count = int(own_row["Anzahl"].iloc[0]) if len(own_row) > 0 else 0
+                    pct_w = own_count / total_w * 100 if total_w > 0 else 0
+                    st.caption(
+                        f"Balkendiagramm – häufigste Wetterbedingungen aller Unfälle. "
+                        f"Dieser Unfall: »{selected_val}« "
+                        f"({own_count} von {total_w}, {pct_w:.0f}%)."
+                    )
 
                 elif sem == "distance":
                     val = float(row[c_name])
@@ -343,6 +355,13 @@ def _render_mini_charts(df: pd.DataFrame, row: pd.Series, compact: bool = False)
                         showlegend=False,
                     )
                     st.plotly_chart(fig, use_container_width=True, key=f"chart_distance_{str(row.name)}")
+                    valid = df[c_name].dropna()
+                    pct_below = (valid <= val).mean() * 100
+                    st.caption(
+                        f"Histogramm – Entfernung zur nächsten Siedlung ({len(valid)} Unfälle). "
+                        f"Dieser Unfall: {val:.1f} km "
+                        f"(weiterer Abstand als {pct_below:.0f}% aller Unfälle)."
+                    )
 
 
 # ---------------------------------------------------------------------------
@@ -531,13 +550,20 @@ def _render_all_tab(df: pd.DataFrame):
 
     p1, p2, p3 = st.columns([1, 2, 1])
     with p1:
-        if st.button("←", key="cmp_prev", disabled=st.session_state.cmp_page == 0):
+        if st.button("← Zurück", key="cmp_prev", disabled=st.session_state.cmp_page == 0,
+                     use_container_width=True):
             st.session_state.cmp_page -= 1
             st.rerun()
     with p2:
-        st.caption(f"Seite {st.session_state.cmp_page + 1}/{total_pages}")
+        st.markdown(
+            f"<p style='text-align:center; color:#6b7280; margin-top:6px;'>"
+            f"Seite {st.session_state.cmp_page + 1} von {total_pages}</p>",
+            unsafe_allow_html=True,
+        )
     with p3:
-        if st.button("→", key="cmp_next", disabled=st.session_state.cmp_page >= total_pages - 1):
+        if st.button("Weiter →", key="cmp_next",
+                     disabled=st.session_state.cmp_page >= total_pages - 1,
+                     use_container_width=True):
             st.session_state.cmp_page += 1
             st.rerun()
 

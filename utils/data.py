@@ -58,6 +58,13 @@ LABELS_DE = {
     "num_bikes": "Anz. Fahrräder", "num_trucks": "Anz. LKW",
 }
 
+# Actual column name → German label (built from COLS + LABELS_DE)
+COL_LABELS: dict = {
+    actual: LABELS_DE.get(sem, sem.replace("_", " ").title())
+    for sem, actuals in COLS.items()
+    for actual in actuals
+}
+
 # Norwegian day names → German (full)
 WEEKDAY_NORM: dict = {
     "mandag": "Montag", "tirsdag": "Dienstag", "onsdag": "Mittwoch",
